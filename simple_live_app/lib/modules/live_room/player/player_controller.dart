@@ -13,7 +13,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:volume_controller/volume_controller.dart';
-import 'package:screen_brightness/screen_brightness.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/custom_throttle.dart';
@@ -259,14 +258,6 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     );
 
     await setPortraitOrientation();
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-      // 亮度重置,桌面平台可能会报错,暂时不处理桌面平台的亮度
-      try {
-        await ScreenBrightness.instance.resetApplicationScreenBrightness();
-      } catch (e) {
-        Log.logPrint(e);
-      }
-    }
 
     await WakelockPlus.disable();
   }
@@ -518,9 +509,7 @@ mixin PlayerGestureControlMixin
   }
 
   bool verticalDragging = false;
-  bool leftVerticalDrag = false;
   var _currentVolume = 0.0;
-  var _currentBrightness = 1.0;
   var verStartPosition = 0.0;
 
   DelayedThrottle? throttle;
@@ -538,8 +527,6 @@ mixin PlayerGestureControlMixin
     }
 
     verStartPosition = dy;
-    leftVerticalDrag = details.globalPosition.dx < Get.width / 2;
-
     throttle = DelayedThrottle(200);
 
     verticalDragging = true;
@@ -548,9 +535,6 @@ mixin PlayerGestureControlMixin
     }
     if (Platform.isAndroid || Platform.isIOS) {
       _currentVolume = await VolumeController.instance.getVolume();
-    }
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-      _currentBrightness = await ScreenBrightness.instance.application;
     }
   }
 
@@ -568,11 +552,7 @@ mixin PlayerGestureControlMixin
 
     Log.logPrint("$verStartPosition/${e.globalPosition.dy}");
 
-    if (leftVerticalDrag) {
-      setGestureBrightness(e.globalPosition.dy);
-    } else {
-      setGestureVolume(e.globalPosition.dy);
-    }
+    setGestureVolume(e.globalPosition.dy);
   }
 
   int lastVolume = -1; // it's ok to be -1
@@ -614,32 +594,6 @@ mixin PlayerGestureControlMixin
     VolumeController.instance.setVolume(volume / 100);
   }
 
-  void setGestureBrightness(double dy) {
-    double value = 0.0;
-    if (dy > verStartPosition) {
-      value = ((dy - verStartPosition) / (Get.height * 0.5));
-
-      var seek = _currentBrightness - value;
-      if (seek < 0) {
-        seek = 0;
-      }
-      ScreenBrightness.instance.setApplicationScreenBrightness(seek);
-
-      gestureTipText.value = "亮度 ${(seek * 100).toInt()}%";
-      Log.logPrint(value);
-    } else {
-      value = ((dy - verStartPosition) / (Get.height * 0.5));
-      var seek = value.abs() + _currentBrightness;
-      if (seek > 1) {
-        seek = 1;
-      }
-
-      ScreenBrightness.instance.setApplicationScreenBrightness(seek);
-      gestureTipText.value = "亮度 ${(seek * 100).toInt()}%";
-      Log.logPrint(value);
-    }
-  }
-
   /// 竖向手势完成
   void onVerticalDragEnd(DragEndDetails details) async {
     if (lockControlsState.value && fullScreenState.value) {
@@ -647,7 +601,6 @@ mixin PlayerGestureControlMixin
     }
     throttle = null;
     verticalDragging = false;
-    leftVerticalDrag = false;
     showGestureTip.value = false;
   }
 }
