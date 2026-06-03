@@ -29,6 +29,7 @@ import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:window_manager/window_manager.dart';
@@ -48,6 +49,14 @@ void main() async {
   );
   //初始化服务
   await initServices();
+  // Windows平台禁用screen_brightness的自动亮度重置，避免插件强制修改显示器亮度
+  if (Platform.isWindows) {
+    try {
+      await ScreenBrightness.instance.setAutoReset(false);
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   //设置状态栏为透明
   SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(
